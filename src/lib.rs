@@ -1,4 +1,5 @@
 mod error;
+mod helper;
 mod key_store;
 mod pkcs12;
 mod types;
