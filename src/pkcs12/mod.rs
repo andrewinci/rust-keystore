@@ -45,6 +45,11 @@ impl KeyStoreImpl for PKCS12Store {
             Err(Error::RequiredPasswordNotProvided)
         }
     }
+
+    fn validate(&self, password: Option<&str>) -> bool {
+        // the validation is performed as part of the struct creation
+        true
+    }
 }
 
 impl From<ErrorStack> for Error {

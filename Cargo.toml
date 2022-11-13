@@ -6,9 +6,13 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+sha1 = "0.10.5"
+base64 = "^0.13"
+simple_asn1 = "0.6"
 openssl = { version = "0.10", features = [
     "vendored",
 ], default-features = false, optional = true }
+
 
 [features]
 default = []

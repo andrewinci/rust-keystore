@@ -55,15 +55,25 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_jks() {
+        let sample_message =
+            read_to_binary("./test_data/jks/RSA1024.jks").expect("Unable to load the test file");
+        let res = KeyStore::from_byte_array(&sample_message);
+        assert!(res.is_ok());
+        let store = res.unwrap();
+        assert!(store.validate(Some("12345678")));
+        //assert_eq!(store.certificates(Some("12345678")).unwrap().len(),1);
+    }
+
+    #[test]
     #[cfg(feature = "p12")]
     fn test_parse_p12() {
         let sample_message =
-            read_to_binary("./test_data/p12/keyStore.p12").expect("Test file not found");
+            read_to_binary("./test_data/p12/keyStore.p12").expect("Unable to load the test file");
         let res = KeyStore::from_byte_array(&sample_message);
         assert!(res.is_ok());
-        assert_eq!(
-            res.unwrap().certificates(Some("12345678")).unwrap().len(),
-            1
-        );
+        let store = res.unwrap();
+        assert!(store.validate(None));
+        assert_eq!(store.certificates(Some("12345678")).unwrap().len(), 1);
     }
 }

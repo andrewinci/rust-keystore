@@ -16,4 +16,5 @@ pub struct Certificate {
 
 pub trait KeyStoreImpl {
     fn certificates(&self, password: Option<&str>) -> Result<Vec<Certificate>>;
+    fn validate(&self, password: Option<&str>) -> bool;
 }
