@@ -13,7 +13,7 @@ pub(crate) enum Entry {
     PrivateKey {
         timestamp: i64,
         alias: String,
-        cert_data: CertData,
+        key: CertData,
         cert_chain: CertChain,
     },
 }

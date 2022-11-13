@@ -62,7 +62,11 @@ mod tests {
         assert!(res.is_ok());
         let store = res.unwrap();
         assert!(store.validate(Some("12345678")));
-        //assert_eq!(store.certificates(Some("12345678")).unwrap().len(),1);
+        let certificates = store
+            .certificates(Some("12345678"))
+            .expect("Unable to retrieve the certs");
+        println!("{:?}", certificates);
+        assert_eq!(certificates.len(), 1);
     }
 
     #[test]

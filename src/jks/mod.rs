@@ -1,4 +1,6 @@
+mod asn1;
 mod helper;
+mod sun_crypto;
 mod types;
 
 use sha1::{Digest, Sha1};
@@ -6,9 +8,11 @@ use sha1::{Digest, Sha1};
 use crate::KeyStoreImpl;
 
 use crate::error::{Error, Result};
-use crate::types::Certificate;
+use crate::types::{Certificate, PrivateKey};
 
+use self::asn1::get_encrypted_private_key;
 use self::helper::{password_to_bin, read_data, read_utf, unpack_4, unpack_8};
+use self::sun_crypto::jks_private_key_decrypt;
 use self::types::{CertChain, CertData, CertType, Entry};
 pub struct Jks {
     check: Vec<u8>,
@@ -56,7 +60,7 @@ impl Jks {
                         alias,
                         timestamp,
                         cert_chain,
-                        cert_data,
+                        key: cert_data,
                     })
                 }
                 2 => {
@@ -102,11 +106,65 @@ impl Jks {
         let (cert_data, pos) = read_data(data, pos)?;
         Ok((cert_type, cert_data, pos))
     }
+
+    fn pem(&self, data: &[u8], password: Option<&str>, is_private_key: bool) -> Result<String> {
+        let chunked_base64 = |data: &[u8]| {
+            base64::encode(data)
+                .chars()
+                .collect::<Vec<char>>()
+                .chunks(64)
+                .map(|c| c.iter().collect::<String>())
+                .collect::<Vec<String>>()
+                .join("\n")
+        };
+
+        match is_private_key {
+            false => Ok(format!(
+                "-----BEGIN CERTIFICATE-----\n{}\n-----END CERTIFICATE-----",
+                chunked_base64(data)
+            )),
+            true => {
+                let decoded_pvy_key = get_encrypted_private_key(data)?;
+                if password.is_none() {
+                    return Err(Error::InvalidPassword);
+                };
+                let private_key = jks_private_key_decrypt(&decoded_pvy_key, password.unwrap())?;
+                Ok(format!(
+                    "-----BEGIN PRIVATE KEY-----\n{}\n-----END PRIVATE KEY-----",
+                    chunked_base64(&private_key)
+                ))
+            }
+        }
+    }
 }
 
 impl KeyStoreImpl for Jks {
-    fn certificates(&self, _password: Option<&str>) -> Result<Vec<Certificate>> {
-        todo!()
+    fn certificates(&self, password: Option<&str>) -> Result<Vec<Certificate>> {
+        //todo: check cert_type to be X509
+        //todo: validate cert_chain contains at least one cert
+        let mut res = vec![];
+        for e in &self.entries {
+            res.push(match e {
+                Entry::Cert { cert_data, .. } => Certificate {
+                    cert_chain: vec![],
+                    x509_der_data: cert_data.clone(),
+                    pem: self.pem(&cert_data, password, false)?,
+                    private_key: None,
+                },
+                Entry::PrivateKey {
+                    key, cert_chain, ..
+                } => Certificate {
+                    cert_chain: vec![],
+                    x509_der_data: cert_chain[0].1.clone(),
+                    pem: self.pem(&cert_chain[0].1, password, false)?,
+                    private_key: Some(PrivateKey {
+                        der_data: key.clone(),
+                        pkcs8_pem: self.pem(&key, password, true)?,
+                    }),
+                },
+            })
+        }
+        Ok(res)
     }
 
     fn validate(&self, password: Option<&str>) -> bool {
