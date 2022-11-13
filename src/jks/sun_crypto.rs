@@ -1,4 +1,4 @@
-use crate::{error::Result};
+use crate::error::Result;
 use sha1::{Digest, Sha1};
 
 use super::helper::password_to_bin;

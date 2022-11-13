@@ -1,4 +1,4 @@
-mod error;
+pub mod error;
 mod helper;
 mod jks;
 mod key_store;
