@@ -1,19 +1,34 @@
+#[cfg(feature = "p12")]
+use crate::pkcs12::PKCS12Store;
+
 use crate::{
     error::{Error, Result},
     helper::read_to_binary,
-    pkcs12::PKCS12Store,
+    jks::Jks,
     KeyStoreImpl,
 };
 
 pub struct KeyStore;
 
 impl KeyStore {
-    pub fn try_load(file_path: &str) -> Result<impl KeyStoreImpl> {
+    pub fn try_load(file_path: &str) -> Result<Box<dyn KeyStoreImpl>> {
         KeyStore::from_byte_array(&read_to_binary(file_path)?)
     }
 
-    pub fn from_byte_array(raw: &[u8]) -> Result<impl KeyStoreImpl> {
-        PKCS12Store::from_byte_array(raw)
+    pub fn from_byte_array(raw: &[u8]) -> Result<Box<dyn KeyStoreImpl>> {
+        if let Ok(jks) = Jks::from_byte_array(raw) {
+            return Ok(Box::new(jks));
+        };
+        #[cfg(feature = "p12")]
+        {
+            if let Ok(p12) = PKCS12Store::from_byte_array(raw) {
+                return Ok(Box::new(p12));
+            }
+        }
+
+        Err(Error::UnsupportedKeystoreFormat(
+            "Unable to parse the data with the supported keystores".into(),
+        ))
     }
 }
 
@@ -40,10 +55,15 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_p12(){
-        let sample_message = read_to_binary("./test_data/p12/keyStore.p12").expect("Test file not found");
+    #[cfg(feature = "p12")]
+    fn test_parse_p12() {
+        let sample_message =
+            read_to_binary("./test_data/p12/keyStore.p12").expect("Test file not found");
         let res = KeyStore::from_byte_array(&sample_message);
         assert!(res.is_ok());
-        assert_eq!(res.unwrap().certificates(Some("12345678")).unwrap().len(), 1);
+        assert_eq!(
+            res.unwrap().certificates(Some("12345678")).unwrap().len(),
+            1
+        );
     }
 }
