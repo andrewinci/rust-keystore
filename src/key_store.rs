@@ -40,7 +40,7 @@ impl From<std::io::Error> for Error {
 
 #[cfg(test)]
 mod tests {
-    use crate::{error::Error, helper::read_to_binary, KeyStoreImpl};
+    use crate::{error::Error, helper::read_to_binary};
 
     use super::KeyStore;
 

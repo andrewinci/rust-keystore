@@ -108,4 +108,12 @@ mod tests {
         let certs = sut.unwrap().certificates(Some("12345678")).unwrap();
         assert_eq!(certs.len(), 0);
     }
+    #[test]
+    fn test_empty_key_store() {
+        let pk12 = read_to_binary("./test_data/p12/empty.p12").unwrap();
+        let sut = PKCS12Store::from_byte_array(&pk12);
+        assert!(sut.is_ok());
+        let certs = sut.unwrap().certificates(Some("12345678")).unwrap();
+        assert_eq!(certs.len(), 0);
+    }
 }
