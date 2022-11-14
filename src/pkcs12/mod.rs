@@ -20,33 +20,37 @@ impl PKCS12Store {
 impl KeyStoreImpl for PKCS12Store {
     fn certificates(&self, password: Option<&str>) -> Result<Vec<Certificate>> {
         if let Some(password) = password {
-            let parsed = self.pkcs12.parse(password).unwrap();
-            let mut cert_chain = vec![];
+            let parsed = self.pkcs12.parse(password)?;
+            let mut res = vec![];
             if let Some(chain) = parsed.chain {
                 for cert in chain {
-                    cert_chain.push(Certificate {
-                        cert_chain: vec![],
+                    res.push(Certificate {
                         x509_der_data: cert.to_der()?,
                         pem: String::from_utf8(cert.to_pem()?)?,
                         private_key: None,
                     });
                 }
             }
-            Ok(vec![Certificate {
-                cert_chain,
-                x509_der_data: parsed.cert.to_der()?,
-                pem: String::from_utf8(parsed.cert.to_pem()?)?,
-                private_key: Some(PrivateKey {
-                    der_data: parsed.pkey.private_key_to_der()?,
-                    pkcs8_pem: String::from_utf8(parsed.pkey.private_key_to_pem_pkcs8()?)?,
-                }),
-            }])
+            res.push(Certificate {
+                x509_der_data: parsed.cert.to_der().unwrap_or_default(),
+                pem: String::from_utf8(parsed.cert.to_pem().unwrap_or_default())?,
+                private_key: if parsed.pkey.size() > 0 {
+                    Some(PrivateKey {
+                        der_data: parsed.pkey.private_key_to_der()?,
+                        pkcs8_pem: String::from_utf8(parsed.pkey.private_key_to_pem_pkcs8()?)?,
+                    })
+                } else {
+                    None
+                },
+            });
+            let res: Vec<_> = res.iter().filter(|c| !c.is_empty()).cloned().collect();
+            Ok(res)
         } else {
             Err(Error::RequiredPasswordNotProvided)
         }
     }
 
-    fn validate(&self, password: Option<&str>) -> bool {
+    fn validate(&self, _password: Option<&str>) -> bool {
         // the validation is performed as part of the struct creation
         true
     }
@@ -82,5 +86,26 @@ mod tests {
         assert_eq!(certs[0].pem, cert_pem);
         let private_key = certs[0].private_key.as_ref().unwrap();
         assert_eq!(private_key.pkcs8_pem, private_pem);
+    }
+
+    #[test]
+    fn test_store_with_only_certificates() {
+        let pk12 = read_to_binary("./test_data/p12/cert_only.p12").unwrap();
+        let pem_cert = read_to_string("./test_data/p12/cert.pem").unwrap();
+        let sut = PKCS12Store::from_byte_array(&pk12);
+        assert!(sut.is_ok());
+        let certs = sut.unwrap().certificates(Some("12345678")).unwrap();
+        assert_eq!(certs.len(), 2);
+        assert_eq!(certs[0].pem, pem_cert);
+    }
+
+    //todo: support key stores with only a raw key
+    #[test]
+    fn test_store_with_only_private_key() {
+        let pk12 = read_to_binary("./test_data/p12/key_only.p12").unwrap();
+        let sut = PKCS12Store::from_byte_array(&pk12);
+        assert!(sut.is_ok());
+        let certs = sut.unwrap().certificates(Some("12345678")).unwrap();
+        assert_eq!(certs.len(), 0);
     }
 }

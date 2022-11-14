@@ -5,14 +5,14 @@ pub(crate) type CertChain = Vec<(CertType, CertData)>;
 #[derive(Debug)]
 pub(crate) enum Entry {
     Cert {
-        timestamp: i64,
-        alias: String,
-        cert_type: CertType,
+        _timestamp: i64,
+        _alias: String,
+        _cert_type: CertType,
         cert_data: CertData,
     },
     PrivateKey {
-        timestamp: i64,
-        alias: String,
+        _timestamp: i64,
+        _alias: String,
         key: CertData,
         cert_chain: CertChain,
     },

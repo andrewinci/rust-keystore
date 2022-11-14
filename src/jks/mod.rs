@@ -57,8 +57,8 @@ impl Jks {
                 1 => {
                     (cert_chain, cert_data, pos) = Self::read_private_key(data, pos)?;
                     Ok(Entry::PrivateKey {
-                        alias,
-                        timestamp,
+                        _alias: alias,
+                        _timestamp: timestamp,
                         cert_chain,
                         key: cert_data,
                     })
@@ -66,9 +66,9 @@ impl Jks {
                 2 => {
                     (cert_type, cert_data, pos) = Self::read_trusted_cert(data, pos)?;
                     Ok(Entry::Cert {
-                        alias,
-                        timestamp,
-                        cert_type,
+                        _alias: alias,
+                        _timestamp: timestamp,
+                        _cert_type: cert_type,
                         cert_data: cert_data.clone(),
                     })
                 }
@@ -141,29 +141,27 @@ impl Jks {
 impl KeyStoreImpl for Jks {
     fn certificates(&self, password: Option<&str>) -> Result<Vec<Certificate>> {
         //todo: check cert_type to be X509
-        //todo: validate cert_chain contains at least one cert
         let mut res = vec![];
         for e in &self.entries {
             res.push(match e {
                 Entry::Cert { cert_data, .. } => Certificate {
-                    cert_chain: vec![],
                     x509_der_data: cert_data.clone(),
-                    pem: self.pem(&cert_data, password, false)?,
+                    pem: self.pem(cert_data, password, false)?,
                     private_key: None,
                 },
                 Entry::PrivateKey {
                     key, cert_chain, ..
                 } => Certificate {
-                    cert_chain: vec![],
                     x509_der_data: cert_chain[0].1.clone(),
                     pem: self.pem(&cert_chain[0].1, password, false)?,
                     private_key: Some(PrivateKey {
                         der_data: key.clone(),
-                        pkcs8_pem: self.pem(&key, password, true)?,
+                        pkcs8_pem: self.pem(key, password, true)?,
                     }),
                 },
             })
         }
+        let res: Vec<_> = res.iter().filter(|c| !c.is_empty()).cloned().collect();
         Ok(res)
     }
 
